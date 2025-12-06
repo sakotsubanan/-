@@ -1,0 +1,54 @@
+body {
+    font-family: 'Consolas', 'Menlo', monospace, sans-serif;
+    background-color: #f4f4f9;
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+}
+
+#game-container {
+    background-color: #fff;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    max-width: 900px;
+    width: 100%;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* 選択画面 */
+#selection-screen h1 { color: #007bff; text-align: center; }
+.option-group { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+#start-button { display: block; width: 100%; padding: 15px; background-color: #28a745; color: white; border: none; border-radius: 8px; font-size: 1.2em; cursor: pointer; margin-top: 20px; }
+#start-button:hover { background-color: #218838; }
+
+/* プレイ画面 */
+#status-bar { font-size: 1.1em; padding: 10px 0; margin-bottom: 20px; border-bottom: 2px solid #eee; display: flex; justify-content: space-between; }
+#text-display { font-size: 1.5em; line-height: 1.8; min-height: 100px; background-color: #fafafa; padding: 20px; border-radius: 8px; white-space: pre-wrap; }
+
+/* タイピング文字の強調スタイル */
+.typed { color: #999; } /* 打ち終わった文字 */
+.current {
+    background-color: #ffe0b2; /* 入力すべき文字を薄い黄色でハイライト */
+    font-weight: bold;
+    color: #000;
+    border-bottom: 2px solid #ff9800;
+}
+.mistyped {
+    background-color: #f8d7da; /* ミスタイプした文字の背景を赤くする */
+    color: #721c24;
+}
+
+/* リザルト画面 */
+#result-screen h2 { color: #007bff; text-align: center; }
+#score-details { font-size: 1.1em; line-height: 1.8; }
+#miss-key-ranking { list-style-type: none; padding: 0; }
+#miss-key-ranking li { background-color: #f8f9fa; margin-bottom: 5px; padding: 8px; border-radius: 4px; }
+#result-screen button { display: block; width: 100%; padding: 10px; margin-top: 30px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }

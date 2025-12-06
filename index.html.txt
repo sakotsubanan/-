@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>上級者向けタイピング：極限集中</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+
+        <div id="selection-screen">
+            <h1>🎯 極限集中タイピング</h1>
+            <p>上級者向け：速度と正確性を極めろ</p>
+
+            <div class="option-group">
+                <h3>1. テーマ選択</h3>
+                <select id="theme-select">
+                    <option value="IT">IT/プログラミング解説 (★★★★☆)</option>
+                    <option value="LEGAL">法律条文と判例引用 (★★★★★)</option>
+                </select>
+            </div>
+            
+            <div class="option-group">
+                <h3>2. モード選択</h3>
+                <div id="mode-selector">
+                    <label><input type="radio" name="mode-type" value="time" checked> 時間制限モード</label>
+                    <label><input type="radio" name="mode-type" value="count"> 耐久チャレンジモード</label>
+                </div>
+
+                <div id="time-options" class="mode-options">
+                    <label><input type="radio" name="time-limit" value="60" checked> 1分</label>
+                    <label><input type="radio" name="time-limit" value="180"> 3分</label>
+                    <label><input type="radio" name="time-limit" value="300"> 5分</label>
+                </div>
+
+                <div id="count-options" class="mode-options hidden">
+                    <label><input type="radio" name="sentence-count" value="10" checked> 10問</label>
+                    <label><input type="radio" name="sentence-count" value="20"> 20問</label>
+                    <label><input type="radio" name="sentence-count" value="30"> 30問</label>
+                </div>
+            </div>
+
+            <button id="start-button">▶️ ゲームスタート</button>
+        </div>
+
+        <div id="game-screen" class="hidden">
+            <div id="status-bar">
+                <span id="timer">⏰ 残り: --</span> | 
+                <span id="wpm">🚀 WPM: 0</span> | 
+                <span id="accuracy">🎯 正確性: 100.0%</span>
+                <span id="progress"></span>
+            </div>
+            <div id="text-display"></div>
+        </div>
+
+        <div id="result-screen" class="hidden">
+            <h2>🏆 リザルト</h2>
+            <div id="score-details"></div>
+            <hr>
+            <h3>🔑 苦手キー分析 TOP5</h3>
+            <ul id="miss-key-ranking"></ul>
+            <button onclick="location.reload()">🔄 もう一度プレイ</button>
+        </div>
+    </div>
+
+    <script src="problems.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

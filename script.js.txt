@@ -1,0 +1,297 @@
+// --- 初期設定とDOM要素の取得 ---
+const $ = (id) => document.getElementById(id);
+
+const selectionScreen = $('selection-screen');
+const gameScreen = $('game-screen');
+const resultScreen = $('result-screen');
+const textDisplay = $('text-display');
+const timerDisplay = $('timer');
+const wpmDisplay = $('wpm');
+const accuracyDisplay = $('accuracy');
+const progressDisplay = $('progress');
+
+let problemList = [];
+let currentProblemIndex = 0;
+let currentProblemCharIndex = 0;
+let typedChars = 0;
+let missedChars = 0;
+let startTime = 0;
+let timerInterval = null;
+let isTimeMode = true;
+let keyStatistics = {}; // { 'k': { total: 10, miss: 2 }, ... }
+
+// --- ユーティリティ関数 ---
+function getRandomElement(arr) {
+    if (!arr || arr.length === 0) return "";
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/**
+ * 複雑な問題文を生成する
+ */
+function generateProblemText(theme) {
+    const fragments = problemFragments[theme];
+    if (!fragments) return "エラー: テーマデータが見つかりません。";
+
+    let text = "";
+    const length = Math.floor(Math.random() * 3) + 3; // 3〜5個の部品を結合
+
+    for (let i = 0; i < length; i++) {
+        let part;
+        if (Math.random() < 0.7) {
+            part = getRandomElement(fragments.nouns);
+        } else {
+            part = getRandomElement(fragments.phrases);
+        }
+
+        if (i < length - 1) {
+            const connector = getRandomElement(fragments.connectors);
+            text += part + connector;
+        } else {
+            text += part + "を明確にする。";
+        }
+        
+        if (Math.random() < 0.3) { // 読点をランダムに追加
+            text += "、";
+        }
+    }
+    
+    return text.replace(/、、/g, '、').replace(/\s{2,}/g, ' ').trim();
+}
+
+// --- ゲーム開始ロジック ---
+
+document.querySelectorAll('input[name="mode-type"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+        isTimeMode = e.target.value === 'time';
+        $('time-options').classList.toggle('hidden', !isTimeMode);
+        $('count-options').classList.toggle('hidden', isTimeMode);
+    });
+});
+
+$('start-button').addEventListener('click', startGame);
+
+function startGame() {
+    selectionScreen.classList.add('hidden');
+    gameScreen.classList.remove('hidden');
+
+    const theme = $('theme-select').value;
+    problemList = []; 
+    
+    // 問題リストを生成 (時間モード用に多めに生成)
+    const maxGenerationCount = 100;
+    for(let i = 0; i < maxGenerationCount; i++) {
+        problemList.push({ 
+            id: `GEN_${i}`, 
+            text: generateProblemText(theme)
+        });
+    }
+
+    resetGameStats();
+    
+    if (isTimeMode) {
+        const timeLimit = parseInt(document.querySelector('input[name="time-limit"]:checked').value);
+        startTimer(timeLimit);
+    } else {
+        startCountUpTimer();
+    }
+
+    loadNextProblem();
+    document.addEventListener('keydown', handleKeyDown);
+}
+
+function resetGameStats() {
+    currentProblemIndex = 0;
+    typedChars = 0;
+    missedChars = 0;
+    keyStatistics = {};
+    startTime = Date.now();
+    wpmDisplay.textContent = '🚀 WPM: 0';
+    accuracyDisplay.textContent = '🎯 正確性: 100.0%';
+}
+
+// --- タイマーロジック ---
+
+function startTimer(duration) {
+    let remaining = duration;
+    timerInterval = setInterval(() => {
+        remaining--;
+        timerDisplay.textContent = `⏰ 残り: ${remaining}秒`;
+        if (remaining <= 0) {
+            clearInterval(timerInterval);
+            endGame();
+        }
+        updateWPM();
+    }, 1000);
+}
+
+function startCountUpTimer() {
+    timerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        timerDisplay.textContent = `経過時間: ${elapsed}秒`;
+        updateWPM();
+    }, 1000);
+}
+
+// --- 問題文の表示 ---
+
+function loadNextProblem() {
+    const maxCount = isTimeMode ? problemList.length : parseInt(document.querySelector('input[name="sentence-count"]:checked').value);
+
+    if (currentProblemIndex >= problemList.length || (!isTimeMode && currentProblemIndex >= maxCount)) {
+        return endGame();
+    }
+    
+    const problemText = problemList[currentProblemIndex].text;
+    textDisplay.innerHTML = '';
+    
+    problemText.split('').forEach((char, index) => {
+        const span = document.createElement('span');
+        span.textContent = char;
+        if (index === 0) {
+            span.classList.add('current');
+        }
+        textDisplay.appendChild(span);
+    });
+
+    if (!isTimeMode) {
+        progressDisplay.textContent = `(${currentProblemIndex + 1}/${maxCount}問目)`;
+    } else {
+        progressDisplay.textContent = '';
+    }
+
+    currentProblemCharIndex = 0;
+}
+
+// --- キー入力処理 ---
+
+function handleKeyDown(e) {
+    e.preventDefault(); 
+
+    const charToType = problemList[currentProblemIndex].text[currentProblemCharIndex];
+    const typedChar = e.key;
+
+    if (e.key.length > 1 && e.key !== 'Enter' && e.key !== 'Backspace') return;
+
+    if (typedChar === 'Backspace') {
+        if (currentProblemCharIndex > 0) {
+            currentProblemCharIndex--;
+            const prevSpan = textDisplay.children[currentProblemCharIndex];
+            prevSpan.classList.remove('typed', 'mistyped');
+            prevSpan.classList.add('current');
+            if (textDisplay.children[currentProblemCharIndex + 1]) {
+                textDisplay.children[currentProblemCharIndex + 1].classList.remove('current');
+            }
+        }
+        return;
+    }
+    
+    const keyForStat = typedChar.toLowerCase();
+    if (!keyStatistics[keyForStat]) {
+        keyStatistics[keyForStat] = { total: 0, miss: 0 };
+    }
+    keyStatistics[keyForStat].total++;
+
+    // シンプルな1:1のマッチング判定
+    const isCorrect = typedChar === charToType;
+
+    const currentSpan = textDisplay.children[currentProblemCharIndex];
+    if (currentSpan) {
+        currentSpan.classList.remove('current');
+        if (isCorrect) {
+            currentSpan.classList.add('typed');
+            typedChars++;
+        } else {
+            currentSpan.classList.add('mistyped');
+            missedChars++;
+            keyStatistics[keyForStat].miss++;
+        }
+
+        currentProblemCharIndex++;
+
+        if (textDisplay.children[currentProblemCharIndex]) {
+            textDisplay.children[currentProblemCharIndex].classList.add('current');
+        } else {
+            currentProblemIndex++;
+            loadNextProblem();
+        }
+        
+        updateWPM();
+        updateAccuracy();
+    }
+}
+
+// --- 統計計算 ---
+
+function updateWPM() {
+    const elapsedMinutes = (Date.now() - startTime) / 60000;
+    const words = typedChars / 5;
+    const wpm = elapsedMinutes > 0 ? Math.round(words / elapsedMinutes) : 0;
+    wpmDisplay.textContent = `🚀 WPM: ${wpm}`;
+}
+
+function updateAccuracy() {
+    const totalInput = typedChars + missedChars;
+    const accuracy = totalInput > 0 ? ((typedChars / totalInput) * 100).toFixed(1) : 100.0;
+    accuracyDisplay.textContent = `🎯 正確性: ${accuracy}%`;
+}
+
+// --- ゲーム終了とリザルト表示 ---
+
+function endGame() {
+    clearInterval(timerInterval);
+    document.removeEventListener('keydown', handleKeyDown);
+
+    gameScreen.classList.add('hidden');
+    resultScreen.classList.remove('hidden');
+
+    const totalInput = typedChars + missedChars;
+    const finalAccuracy = totalInput > 0 ? ((typedChars / totalInput) * 100).toFixed(1) : 100.0;
+    const finalTime = Math.floor((Date.now() - startTime) / 1000);
+    const finalWPM = Math.round((typedChars / 5) / (finalTime / 60));
+
+    let detailsHTML = `
+        <p><strong>総打鍵数:</strong> ${typedChars + missedChars}</p>
+        <p><strong>ミス数:</strong> ${missedChars}</p>
+        <p><strong>最終WPM:</strong> <span style="font-size:1.5em; color:#007bff;">${finalWPM}</span></p>
+        <p><strong>最終正確性:</strong> <span style="font-size:1.5em; color:#28a745;">${finalAccuracy}%</span></p>
+    `;
+    if (!isTimeMode) {
+         detailsHTML += `<p><strong>クリアタイム:</strong> ${finalTime}秒</p>`;
+    } else {
+        detailsHTML += `<p><strong>プレイ時間:</strong> ${finalTime}秒</p>`;
+    }
+    $('score-details').innerHTML = detailsHTML;
+    
+    analyzeMissedKeys();
+}
+
+function analyzeMissedKeys() {
+    const missRates = [];
+    for (const key in keyStatistics) {
+        // 頻度の低いキーを除外
+        if (keyStatistics[key].total > 5) { 
+            const rate = (keyStatistics[key].miss / keyStatistics[key].total) * 100;
+            missRates.push({ key: key, rate: rate.toFixed(2), total: keyStatistics[key].total });
+        }
+    }
+
+    missRates.sort((a, b) => b.rate - a.rate);
+
+    const rankingList = $('miss-key-ranking');
+    rankingList.innerHTML = '';
+    
+    // TOP 5を表示
+    missRates.slice(0, 5).forEach((item, index) => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <strong>${index + 1}位:</strong> 「${item.key.toUpperCase()}」キー 
+            (ミス率: <span style="color:red;">${item.rate}%</span> / 総打鍵: ${item.total}回)
+        `;
+        rankingList.appendChild(li);
+    });
+
+    if (missRates.length === 0) {
+        rankingList.innerHTML = '<li>🎉 素晴らしい！ミスが少ないか、まだ十分なデータがありません。</li>';
+    }
+}
